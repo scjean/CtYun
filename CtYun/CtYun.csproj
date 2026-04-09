@@ -1,13 +1,26 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net8.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>disable</Nullable>
-		<PublishAot>true</PublishAot>
-		<FileVersion>1.1.4</FileVersion>
-		<AssemblyVersion>1.1.4</AssemblyVersion>
-	</PropertyGroup>
+  <PropertyGroup>
+    <!-- 基础配置：输出为EXE，目标框架net8.0 -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    
+    <!-- 版本号（保持你的原有配置） -->
+    <FileVersion>1.1.4</FileVersion>
+    <AssemblyVersion>1.1.4</AssemblyVersion>
+
+    <!-- Windows EXE核心配置 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier> <!-- 指定Windows x64架构 -->
+    <SelfContained>true</SelfContained> <!-- 自包含发布（无需安装.NET运行时） -->
+    <PublishSingleFile>true</PublishSingleFile> <!-- 打包为单个EXE文件 -->
+    <PublishTrimmed>true</PublishTrimmed> <!-- 裁剪无用代码，减小体积 -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract> <!-- 包含原生库 -->
+    
+    <!-- AOT配置（保留你的原有配置，注意：AOT+单文件需确保兼容性） -->
+    <PublishAot>true</PublishAot>
+    <PublishReadyToRun>true</PublishReadyToRun> <!-- 辅助AOT提升性能 -->
+  </PropertyGroup>
 
 </Project>
