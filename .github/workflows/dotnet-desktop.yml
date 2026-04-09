@@ -1,4 +1,4 @@
-name: .NET and Docker
+name: Build Windows EXE Only
 
 on:
   push:
@@ -7,62 +7,53 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-
+  build-windows-exe:
+    # 指定Windows系统编译（必须用windows-latest，否则无法生成Windows EXE）
+    runs-on: windows-latest
     steps:
-    # 检出代码 
+    # 1. 检出代码
     - uses: actions/checkout@v4
 
-    # 设置 .NET 环境
-    - name: Setup .NET
+    # 2. 配置.NET 8环境
+    - name: Setup .NET 8
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
-    # 确定版本号  
+    # 3. 读取项目版本号（可选，用于产物命名）
     - name: Read project version
       id: get-version
+      shell: pwsh  # Windows用pwsh执行PowerShell命令
       run: |
-        version=$(grep -oP '(?<=<FileVersion>).*?(?=</FileVersion>)' CtYun/CtYun.csproj)
-        if [ -z "$version" ]; then
-          echo "Error: Unable to read version from CtYun.csproj"
+        $version = Select-String -Path CtYun/CtYun.csproj -Pattern '<FileVersion>(.*?)</FileVersion>' | ForEach-Object { $_.Matches.Groups[1].Value }
+        if (-not $version) {
+          Write-Error "无法从CtYun.csproj读取版本号"
           exit 1
-        fi
-        echo "version=$version" >> $GITHUB_ENV
-        echo "Version: $version"
-    # 恢复依赖
+        }
+        echo "version=$version" >> $env:GITHUB_ENV
+        Write-Host "当前版本：$version"
+
+    # 4. 恢复项目依赖
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore CtYun/CtYun.csproj
 
-    # 构建应用程序
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-
-    # 发布应用程序
-    - name: Publish Application
-      run: dotnet publish CtYun/CtYun.csproj -c Release -p:PublishAot=false -o publish
-
-    # 登录 Docker Hub
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    # 设置 Buildx
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-      with:
-        driver: docker-container
-
-    # 构建和推送多架构 Docker 镜像
-    - name: Build and Push Multi-Arch Docker Image
+    # 5. 编译+发布Windows EXE（单文件、自包含、AOT）
+    - name: Publish Windows EXE (AOT)
       run: |
-        docker buildx build \
-          --no-cache \
-          --platform linux/amd64,linux/arm64 \
-          -t ${{ secrets.DOCKER_USERNAME }}/ctyun:${{ env.version }} \
-          -t ${{ secrets.DOCKER_USERNAME }}/ctyun:latest \
-          -f ./CtYun/Dockerfile \
-          --push .
+        dotnet publish CtYun/CtYun.csproj `
+          -c Release `          # 发布Release版本
+          -r win-x64 `          # 目标架构：Windows x64
+          -o publish-win `      # 输出目录
+          --self-contained true `# 自包含（无需安装.NET运行时）
+          /p:PublishSingleFile=true ` # 打包为单个EXE
+          /p:PublishTrimmed=true `    # 裁剪无用代码（减小体积）
+          /p:PublishAot=true          # AOT编译（原生机器码，可选：不需要则改为false）
+
+    # 6. 上传EXE产物（可在Action页面下载）
+    - name: Upload Windows EXE Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # 产物名称：包含版本号，便于识别
+        name: CtYun-Win-x64-v${{ env.version }}
+        # 只上传生成的EXE文件（无需其他冗余文件）
+        path: publish-win/CtYun.exe
